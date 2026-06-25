@@ -10,6 +10,7 @@ const CFG = {
   LANG:    'pt-br',
   SAFE:    ['safe','suggestive'],
   ALL:     ['safe','suggestive','erotica','pornographic'],
+  CHAPTER_LANGS: ['pt-br','pt','en','es-la','es'],
   LIMIT:   18,
   // Full Color tag UUID (MangaDex)
   TAG_COLOR: 'f4122d1c-3b44-44d0-9936-ff7502c39ad1',
@@ -103,29 +104,42 @@ const API = (() => {
       limit: CFG.LIMIT, offset,
     }),
 
-    // Search by title
-    search: (title) => req('/manga', {
-      title,
-      'availableTranslatedLanguage[]': CFG.LANG,
-      'contentRating[]': rating(),
-      'includes[]': BASE_MANGA,
-      'order[relevance]': 'desc',
-      limit: 24,
-    }, 30_000),
+    async search(title) {
+      const base = {
+        title,
+        'contentRating[]': rating(),
+        'includes[]': BASE_MANGA,
+        'order[relevance]': 'desc',
+        limit: 24,
+      };
+      const primary = await req('/manga', { ...base, 'availableTranslatedLanguage[]': CFG.LANG }, 30_000);
+      return primary.data.length ? primary : req('/manga', base, 30_000);
+    },
 
     // Single manga (for detail page)
     manga: (id) => req(`/manga/${id}`, {
       'includes[]': ['cover_art','author','artist'],
     }),
 
-    // Chapter list for a manga
-    chapters: (mangaId, offset = 0) => req(`/manga/${mangaId}/feed`, {
-      'translatedLanguage[]': CFG.LANG,
-      'order[chapter]': 'desc',
-      'includes[]': ['scanlation_group'],
-      'contentRating[]': CFG.ALL,
-      limit: 100, offset,
-    }),
+    async chapters(mangaId) {
+      const limit = 500;
+      const params = {
+        'translatedLanguage[]': CFG.CHAPTER_LANGS,
+        'order[volume]': 'desc',
+        'order[chapter]': 'desc',
+        'includes[]': ['scanlation_group'],
+        'contentRating[]': CFG.ALL,
+        limit,
+      };
+      const first = await req(`/manga/${mangaId}/feed`, { ...params, offset: 0 });
+      const data = [...first.data];
+      for (let offset = data.length; offset < first.total; offset += limit) {
+        const next = await req(`/manga/${mangaId}/feed`, { ...params, offset });
+        data.push(...next.data);
+        if (next.data.length < limit) break;
+      }
+      return { ...first, data: uniqueChapters(data) };
+    },
 
     // Chapter page data
     pages: (chapterId) => req(`/at-home/server/${chapterId}`, {}, 0),  // no cache
@@ -154,6 +168,51 @@ function pageURL(baseUrl, mode, hash, file) {
   const src = `${baseUrl}/${mode}/${hash}/${file}`;
   return `/api/page?url=${encodeURIComponent(src)}`;
 }
+function chapterLang(ch) {
+  return ch.attributes.translatedLanguage || '';
+}
+function langLabel(lang) {
+  return ({ 'pt-br':'PT-BR', pt:'PT', en:'EN', 'es-la':'ES-LA', es:'ES' })[lang] || lang.toUpperCase();
+}
+function chapterKey(ch) {
+  const a = ch.attributes;
+  if (!a.chapter) return `oneshot:${a.volume || ''}:${(a.title || '').trim().toLowerCase()}:${chapterLang(ch)}`;
+  return `${a.volume || ''}:${String(a.chapter).replace(/\.0$/, '')}`;
+}
+function chapterNum(ch) {
+  const n = parseFloat(ch.attributes.chapter);
+  return Number.isFinite(n) ? n : -1;
+}
+function chapterScore(ch) {
+  const lang = CFG.CHAPTER_LANGS.indexOf(chapterLang(ch));
+  return [
+    lang < 0 ? 0 : 1000 - lang * 100,
+    ch.attributes.externalUrl ? 0 : 1,
+    ch.attributes.pages || 0,
+    Date.parse(ch.attributes.publishAt || '') || 0,
+  ];
+}
+function betterChapter(a, b) {
+  const as = chapterScore(a);
+  const bs = chapterScore(b);
+  for (let i = 0; i < as.length; i++) {
+    if (as[i] !== bs[i]) return as[i] > bs[i] ? a : b;
+  }
+  return a;
+}
+function uniqueChapters(chapters) {
+  const map = new Map();
+  for (const ch of chapters) {
+    const key = chapterKey(ch);
+    const current = map.get(key);
+    if (!current || betterChapter(ch, current) === ch) map.set(key, ch);
+  }
+  return [...map.values()].sort((a, b) =>
+    (parseFloat(b.attributes.volume) || 0) - (parseFloat(a.attributes.volume) || 0) ||
+    chapterNum(b) - chapterNum(a) ||
+    Date.parse(b.attributes.publishAt || '') - Date.parse(a.attributes.publishAt || '')
+  );
+}
 function authorName(m) {
   const a = m.relationships?.find(r => r.type === 'author');
   return a?.attributes?.name || '';
@@ -174,6 +233,9 @@ function chLabel(ch) {
   const vol = ch.attributes.volume ? `Vol.${ch.attributes.volume} ` : '';
   const num = ch.attributes.chapter ? `Cap.${ch.attributes.chapter}` : 'Oneshot';
   return vol + num;
+}
+function isReadableChapter(ch) {
+  return !ch.attributes.externalUrl && (ch.attributes.pages || 0) > 0;
 }
 
 // ── 5. STORAGE ────────────────────────────────
@@ -565,18 +627,28 @@ function renderDetail(m, chapters) {
   const [stLabel, stCls] = statusMap[status] || ['—','status-hiatus'];
 
   // First chapter to read
-  const firstCh = [...chapters].reverse()[0];
-  const readCh  = prog ? chapters.find(c => c.id === prog.chId) || firstCh : firstCh;
+  const readableChapters = chapters.filter(isReadableChapter);
+  const firstCh = [...(readableChapters.length ? readableChapters : chapters)].reverse()[0];
+  const readCh  = prog ? chapters.find(c => c.id === prog.chId && isReadableChapter(c)) || firstCh : firstCh;
   const readLabel = prog ? `Continuar — ${esc(prog.chTitle||'')}` : 'Começar a ler';
 
   const chHTML = chapters.length === 0
     ? `<div class="empty-sub" style="padding:20px 16px;color:var(--sub)">Sem capítulos em PT-BR ainda.</div>`
     : chapters.map(ch => {
         const read = prog && (parseFloat(ch.attributes.chapter) <= parseFloat(prog?.chTitle?.replace(/\D/g,'') || '0'));
+        const lang = chapterLang(ch);
+        const langHTML = lang && lang !== CFG.LANG ? `<span class="ch-lang">${langLabel(lang)}</span>` : '';
+        const external = ch.attributes.externalUrl;
+        const externalHTML = external ? '<span class="ch-lang">WEB</span>' : '';
+        const action = external
+          ? `openExternal('${encodeURIComponent(external)}')`
+          : `openChapter('${ch.id}','${esc(chLabel(ch))}')`;
         return `
-          <div class="ch-row ${read ? 'ch-read' : ''}" onclick="openChapter('${ch.id}','${esc(chLabel(ch))}')">
+          <div class="ch-row ${read ? 'ch-read' : ''} ${external ? 'ch-external' : ''}" onclick="${action}">
             <span class="ch-num">${esc(chLabel(ch))}</span>
             <span class="ch-title">${esc(ch.attributes.title || '')}</span>
+            ${langHTML}
+            ${externalHTML}
             <span class="ch-date">${ago(ch.attributes.publishAt)}</span>
           </div>`;
       }).join('');
@@ -640,6 +712,11 @@ window.toggleList = function() {
   const added = DB.toggleList(S.currentManga);
   const btn = document.getElementById('btn-list');
   if (btn) btn.classList.toggle('active', added);
+};
+
+window.openExternal = function(encodedUrl) {
+  const url = decodeURIComponent(encodedUrl);
+  window.open(url, '_blank', 'noopener,noreferrer');
 };
 
 /* ──── CHAPTER READER ──── */
