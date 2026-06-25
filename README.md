@@ -6,7 +6,7 @@ Biblioteca privada de manga e manhwa em PT-BR — MangaDex integration.
 
 ### Opção 1 — Via GitHub (recomendado)
 1. Crie um repositório no GitHub
-2. Faça push dos arquivos do projeto: `index.html`, `app.js`, `api/`, `package.json`
+2. Faça push dos arquivos do projeto: `index.html`, `app.js`, `api/`, `vercel.json`
 3. Na Vercel: **Add New Project → Import Git Repository**
 4. Selecione o repo → **Deploy**
 
@@ -21,7 +21,7 @@ tory-reader/
 ├── index.html    # Shell da SPA + todo o CSS
 ├── app.js        # Lógica completa + integração MangaDex
 ├── api/          # Proxies serverless para API, capas e páginas
-└── package.json  # Config mínima do runtime
+└── vercel.json   # Roteamento da SPA sem interceptar /api
 ```
 
 ## Features
