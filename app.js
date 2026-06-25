@@ -150,6 +150,10 @@ function cover(m, size = 256) {
   }
   return `${CFG.COVERS}/${m.id}/${rel.attributes.fileName}.${size}.jpg`;
 }
+function pageURL(baseUrl, mode, hash, file) {
+  const src = `${baseUrl}/${mode}/${hash}/${file}`;
+  return `/api/page?url=${encodeURIComponent(src)}`;
+}
 function authorName(m) {
   const a = m.relationships?.find(r => r.type === 'author');
   return a?.attributes?.name || '';
@@ -659,11 +663,9 @@ window.openChapter = async function(chId, chTitle) {
   try {
     const data = await API.pages(chId);
     const { baseUrl, chapter } = data;
-    // prefer dataSaver (faster load, enough quality on mobile)
-    const imgList = chapter.dataSaver.map((f) => {
-      const src = `${baseUrl}/data-saver/${chapter.hash}/${f}`;
-      return `/api/page?url=${encodeURIComponent(src)}`;
-    });
+    const files = chapter.dataSaver?.length ? chapter.dataSaver : chapter.data;
+    const mode = chapter.dataSaver?.length ? 'data-saver' : 'data';
+    const imgList = files.map((file) => pageURL(baseUrl, mode, chapter.hash, file));
 
     S.readerPage  = 0;
     S.readerTotal = imgList.length;
@@ -671,7 +673,7 @@ window.openChapter = async function(chId, chTitle) {
     S.currentChInfo = chTitle;
 
     pages.innerHTML = imgList.map((src, i) =>
-      `<img src="${src}" alt="Página ${i+1}" loading="${i < 3 ? 'eager' : 'lazy'}" onerror="this.style.minHeight='120px'">`
+      `<img src="${src}" alt="Página ${i+1}" loading="${i < 3 ? 'eager' : 'lazy'}">`
     ).join('');
 
     updateReaderUI(1, imgList.length);
