@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#0B0B11"/>
+  <meta name="description" content="Tory — Biblioteca privada de manga e manhwa em PT-BR"/>
+  <title>Tory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    /* ── TOKENS ── */
+    :root {
+      --bg:       #0B0B11;
+      --surf:     #111119;
+      --card:     #191926;
+      --card-hi:  #1F1F30;
+      --border:   rgba(255,255,255,0.06);
+      --rose:     #F0608A;
+      --rose-dim: rgba(240,96,138,0.12);
+      --violet:   #A878F4;
+      --gold:     #F5C842;
+      --red:      #EF4444;
+      --green:    #22C55E;
+      --text:     #EEEAF8;
+      --sub:      #7A7A98;
+      --faint:    #2A2A40;
+      --sw:       272px;
+      --hh:       52px;
+      --r:        10px;
+      --rs:       7px;
+      --ease:     0.22s cubic-bezier(0.4,0,0.2,1);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+    body{
+      font-family:'Nunito',system-ui,sans-serif;
+      background:var(--bg);color:var(--text);
+      overflow-x:hidden;min-height:100dvh;
+      -webkit-tap-highlight-color:transparent;
+    }
+    a{text-decoration:none;color:inherit}
+    button{font-family:inherit;cursor:pointer}
+    img{display:block}
+
+    /* ── OVERLAY ── */
+    .overlay{
+      position:fixed;inset:0;background:rgba(0,0,0,0.72);
+      backdrop-filter:blur(3px);z-index:40;
+      opacity:0;pointer-events:none;transition:opacity var(--ease);
+    }
+    body.sb-open .overlay{opacity:1;pointer-events:all}
+
+    /* ── SIDEBAR ── */
+    .sidebar{
+      position:fixed;top:0;left:0;bottom:0;width:var(--sw);
+      background:var(--surf);border-right:1px solid var(--border);
+      z-index:50;transform:translateX(-100%);
+      transition:transform var(--ease);
+      display:flex;flex-direction:column;will-change:transform;
+    }
+    body.sb-open .sidebar{transform:translateX(0)}
+    .sb-head{
+      padding:18px 16px 14px;border-bottom:1px solid var(--border);
+      display:flex;align-items:flex-end;justify-content:space-between;flex-shrink:0;
+    }
+    .sb-name{
+      font-size:1.8rem;font-weight:900;letter-spacing:-1.5px;
+      background:linear-gradient(125deg,var(--rose) 0%,var(--violet) 100%);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    }
+    .sb-tagline{
+      font-size:0.6rem;font-weight:700;color:var(--sub);
+      letter-spacing:0.1em;text-transform:uppercase;margin-top:2px;
+    }
+    .sb-close{
+      width:30px;height:30px;background:var(--faint);border:none;
+      border-radius:50%;color:var(--sub);display:flex;align-items:center;
+      justify-content:center;flex-shrink:0;margin-bottom:2px;
+      transition:background var(--ease),color var(--ease);
+    }
+    .sb-close:hover{background:var(--card-hi);color:var(--text)}
+    .sb-body{padding:10px;overflow-y:auto;flex:1;scrollbar-width:none}
+    .sb-body::-webkit-scrollbar{width:0}
+    .nav-group{margin-bottom:2px}
+    .nav-label{
+      font-size:0.58rem;font-weight:800;letter-spacing:0.14em;
+      text-transform:uppercase;color:var(--faint);padding:10px 10px 5px;
+    }
+    .nav-link{
+      display:flex;align-items:center;gap:11px;padding:9px 12px;
+      border-radius:var(--rs);color:var(--sub);font-weight:700;
+      font-size:0.88rem;transition:background var(--ease),color var(--ease);
+      border:none;background:none;width:100%;text-align:left;
+    }
+    .nav-link:hover{background:var(--card);color:var(--text)}
+    .nav-link.active{background:var(--rose-dim);color:var(--rose)}
+    .nav-link svg{width:18px;height:18px;flex-shrink:0}
+    .nav-link .pill{
+      margin-left:auto;font-size:0.55rem;font-weight:900;
+      padding:2px 7px;border-radius:20px;letter-spacing:0.04em;
+    }
+    .pill-red{background:var(--red);color:#fff}
+    .pill-gold{background:var(--gold);color:#111}
+    .pill-rose{background:var(--rose);color:#fff}
+    .nav-sep{height:1px;background:var(--border);margin:6px 8px}
+
+    /* ── HEADER ── */
+    .header{
+      position:sticky;top:0;z-index:30;height:var(--hh);
+      background:rgba(11,11,17,0.9);backdrop-filter:blur(14px);
+      border-bottom:1px solid var(--border);
+      display:flex;align-items:center;padding:0 14px;gap:10px;
+    }
+    .h-logo{
+      flex:1;font-size:1.35rem;font-weight:900;letter-spacing:-0.5px;
+      background:linear-gradient(125deg,var(--rose) 0%,var(--violet) 100%);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    }
+    .icon-btn{
+      width:38px;height:38px;background:none;border:none;
+      color:var(--text);border-radius:var(--rs);
+      display:flex;align-items:center;justify-content:center;
+      transition:background var(--ease);flex-shrink:0;
+    }
+    .icon-btn:hover{background:var(--faint)}
+    .icon-btn svg{width:20px;height:20px}
+
+    /* ── SEARCH ── */
+    .search-bar{
+      position:fixed;top:0;left:0;right:0;z-index:60;
+      background:rgba(11,11,17,0.97);backdrop-filter:blur(16px);
+      padding:9px 14px;display:flex;gap:8px;align-items:center;
+      border-bottom:1px solid var(--border);
+      transform:translateY(-100%);transition:transform var(--ease);
+    }
+    body.srch-open .search-bar{transform:translateY(0)}
+    .search-input{
+      flex:1;background:var(--card);border:1.5px solid var(--border);
+      border-radius:var(--rs);padding:9px 14px;color:var(--text);
+      font-size:0.95rem;font-family:inherit;font-weight:600;outline:none;
+      transition:border-color var(--ease);
+    }
+    .search-input::placeholder{color:var(--sub)}
+    .search-input:focus{border-color:var(--rose)}
+    .search-cancel{
+      background:none;border:none;color:var(--rose);
+      font-size:0.85rem;font-weight:800;font-family:inherit;
+      padding:6px 2px;white-space:nowrap;
+    }
+
+    /* ── MAIN ── */
+    main{padding-bottom:72px;min-height:60vh}
+
+    /* ── SKELETON ── */
+    @keyframes shimmer{
+      0%{background-position:-200% 0}100%{background-position:200% 0}
+    }
+    .sk{
+      background:linear-gradient(90deg,var(--card) 0%,var(--card-hi) 45%,var(--card) 100%);
+      background-size:200% 100%;animation:shimmer 1.6s ease-in-out infinite;
+    }
+
+    /* ── SECTION ── */
+    .sec{padding:20px 16px 4px}
+    .sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .sec-title{
+      font-size:0.95rem;font-weight:900;
+      display:flex;align-items:center;gap:8px;
+    }
+    .sec-title::before{
+      content:'';display:block;width:3px;height:16px;border-radius:2px;
+      background:linear-gradient(to bottom,var(--rose),var(--violet));flex-shrink:0;
+    }
+    .see-all{font-size:0.75rem;font-weight:800;color:var(--rose)}
+
+    /* ── TABS ── */
+    .tabs{
+      display:flex;gap:7px;padding:14px 16px 2px;
+      overflow-x:auto;scrollbar-width:none;
+    }
+    .tabs::-webkit-scrollbar{display:none}
+    .tab{
+      flex-shrink:0;padding:7px 15px;border-radius:20px;
+      font-size:0.82rem;font-weight:800;border:1.5px solid var(--border);
+      background:var(--surf);color:var(--sub);
+      transition:all var(--ease);white-space:nowrap;
+    }
+    .tab:hover:not(.active){border-color:var(--rose);color:var(--text)}
+    .tab.active{background:var(--rose);border-color:var(--rose);color:#fff}
+
+    /* ── HERO ── */
+    .hero{padding:22px 16px 10px}
+    .hero-hi{
+      font-size:0.68rem;font-weight:800;color:var(--sub);
+      letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;
+    }
+    .hero-h1{font-size:1.55rem;font-weight:900;line-height:1.2;letter-spacing:-0.3px}
+    .hero-h1 em{
+      font-style:normal;
+      background:linear-gradient(120deg,var(--rose),var(--violet));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    }
+
+    /* ── CARDS ── */
+    .card{
+      border-radius:var(--r);overflow:hidden;background:var(--card);
+      position:relative;aspect-ratio:2/3;cursor:pointer;display:block;
+      transition:transform var(--ease),box-shadow var(--ease);
+    }
+    .card:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.5)}
+    .card img{width:100%;height:100%;object-fit:cover}
+    .card .no-img{
+      width:100%;height:100%;
+      background:linear-gradient(135deg,var(--card) 0%,var(--faint) 100%);
+      display:flex;align-items:center;justify-content:center;
+    }
+    .card .no-img svg{width:32px;height:32px;opacity:.3}
+    .card-foot{
+      position:absolute;bottom:0;left:0;right:0;
+      padding:28px 8px 8px;
+      background:linear-gradient(to top,rgba(0,0,0,.92) 0%,transparent 100%);
+    }
+    .card-t{font-size:0.7rem;font-weight:800;line-height:1.25;color:#fff}
+    .card-sub{font-size:0.6rem;color:rgba(255,255,255,.5);margin-top:2px;font-weight:600}
+    .badge{
+      position:absolute;top:6px;left:6px;
+      font-size:0.56rem;font-weight:900;padding:2px 6px;border-radius:4px;
+      letter-spacing:0.04em;text-transform:uppercase;line-height:1.4;
+    }
+    .b-new{background:var(--rose);color:#fff}
+    .b-color{background:var(--gold);color:#111}
+    .b-18{background:var(--red);color:#fff}
+    .b-hot{background:#FF7A22;color:#fff}
+    .card-prog{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.1)}
+    .card-prog-fill{height:100%;background:linear-gradient(90deg,var(--rose),var(--violet))}
+
+    /* ── GRIDS ── */
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+    @media(min-width:420px){.grid3{grid-template-columns:repeat(4,1fr)}}
+    @media(min-width:640px){.grid3{grid-template-columns:repeat(5,1fr)}}
+    @media(min-width:900px){.grid3{grid-template-columns:repeat(6,1fr)}}
+    .hrow{display:flex;gap:9px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+    .hrow::-webkit-scrollbar{display:none}
+    .hrow .card{flex-shrink:0;width:38vw;max-width:148px}
+
+    /* ── CONTINUE READING ── */
+    .cr-card{
+      border-radius:var(--r);overflow:hidden;background:var(--card);
+      cursor:pointer;flex-shrink:0;width:72vw;max-width:260px;
+      display:flex;transition:background var(--ease);
+    }
+    .cr-card:hover{background:var(--card-hi)}
+    .cr-cover{width:72px;flex-shrink:0}
+    .cr-cover img,.cr-cover .no-img{width:100%;aspect-ratio:2/3;object-fit:cover}
+    .cr-info{padding:10px 12px;display:flex;flex-direction:column;justify-content:space-between;flex:1;min-width:0}
+    .cr-title{
+      font-size:0.82rem;font-weight:800;line-height:1.25;color:var(--text);
+      display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+    }
+    .cr-ch{font-size:0.7rem;color:var(--rose);font-weight:700;margin-top:4px}
+    .cr-prog-label{
+      font-size:0.6rem;color:var(--sub);font-weight:700;margin-bottom:4px;
+      display:flex;justify-content:space-between;margin-top:10px;
+    }
+    .prog-bar{height:3px;background:var(--faint);border-radius:2px;overflow:hidden}
+    .prog-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--rose),var(--violet))}
+
+    /* ── MANGA DETAIL ── */
+    .detail-hero{position:relative;padding:0}
+    .detail-bg{
+      width:100%;height:240px;object-fit:cover;
+      filter:blur(20px) brightness(0.3);transform:scale(1.05);
+    }
+    .detail-content{
+      position:absolute;bottom:0;left:0;right:0;
+      display:flex;gap:14px;padding:16px;align-items:flex-end;
+    }
+    .detail-cover{
+      width:110px;flex-shrink:0;border-radius:var(--r);overflow:hidden;
+      box-shadow:0 8px 24px rgba(0,0,0,.6);
+    }
+    .detail-cover img{width:100%;aspect-ratio:2/3;object-fit:cover}
+    .detail-meta{flex:1;min-width:0;padding-bottom:4px}
+    .detail-title{font-size:1.15rem;font-weight:900;line-height:1.2;color:#fff}
+    .detail-year{font-size:0.72rem;color:rgba(255,255,255,.55);font-weight:700;margin-top:4px}
+    .detail-status{
+      display:inline-block;font-size:0.62rem;font-weight:800;
+      padding:2px 8px;border-radius:20px;margin-top:6px;
+    }
+    .status-ongoing{background:rgba(34,197,94,.2);color:var(--green)}
+    .status-completed{background:rgba(168,120,244,.2);color:var(--violet)}
+    .status-hiatus{background:rgba(245,200,66,.2);color:var(--gold)}
+    .detail-body{padding:16px}
+    .detail-actions{display:flex;gap:8px;margin-bottom:16px}
+    .btn-primary{
+      flex:1;padding:10px;background:var(--rose);color:#fff;
+      border:none;border-radius:var(--rs);font-size:0.88rem;
+      font-weight:800;transition:opacity var(--ease);
+    }
+    .btn-primary:hover{opacity:.9}
+    .btn-icon-lg{
+      width:42px;height:42px;background:var(--card);border:1.5px solid var(--border);
+      border-radius:var(--rs);display:flex;align-items:center;justify-content:center;
+      color:var(--sub);flex-shrink:0;transition:all var(--ease);
+    }
+    .btn-icon-lg:hover{border-color:var(--rose);color:var(--rose)}
+    .btn-icon-lg.active{background:var(--rose-dim);border-color:var(--rose);color:var(--rose)}
+    .btn-icon-lg svg{width:20px;height:20px}
+    .detail-desc{
+      font-size:0.84rem;line-height:1.65;color:var(--sub);
+      display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;
+      cursor:pointer;
+    }
+    .detail-desc.expanded{-webkit-line-clamp:unset}
+    .detail-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+    .tag{
+      font-size:0.65rem;font-weight:700;padding:3px 9px;
+      border-radius:20px;background:var(--faint);color:var(--sub);
+    }
+    .chapters-header{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:14px 16px 10px;border-top:1px solid var(--border);
+    }
+    .chapters-title{font-size:0.9rem;font-weight:900}
+    .ch-row{
+      display:flex;align-items:center;gap:12px;padding:12px 16px;
+      border-bottom:1px solid var(--border);cursor:pointer;
+      transition:background var(--ease);
+    }
+    .ch-row:hover{background:var(--card)}
+    .ch-num{font-size:0.82rem;font-weight:800;min-width:60px;color:var(--text)}
+    .ch-title{font-size:0.78rem;color:var(--sub);font-weight:600;flex:1;min-width:0;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .ch-date{font-size:0.65rem;color:var(--faint);font-weight:700;flex-shrink:0}
+    .ch-read{color:var(--faint)}
+    .ch-read .ch-num{color:var(--faint)}
+
+    /* ── CHAPTER READER ── */
+    #reader{
+      position:fixed;inset:0;z-index:100;background:#000;
+      display:flex;flex-direction:column;overflow:hidden;
+    }
+    .reader-header{
+      position:absolute;top:0;left:0;right:0;z-index:10;
+      background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);
+      padding:10px 14px;display:flex;align-items:center;gap:10px;
+      transition:opacity var(--ease),transform var(--ease);
+    }
+    .reader-header.hidden{opacity:0;transform:translateY(-100%);pointer-events:none}
+    .reader-back{
+      width:36px;height:36px;background:rgba(255,255,255,.1);border:none;
+      border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;
+      flex-shrink:0;
+    }
+    .reader-back svg{width:18px;height:18px}
+    .reader-title{flex:1;font-size:0.85rem;font-weight:800;color:#fff;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .reader-ch{font-size:0.72rem;color:rgba(255,255,255,.55);font-weight:700}
+    .reader-footer{
+      position:absolute;bottom:0;left:0;right:0;z-index:10;
+      background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);
+      padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+      display:flex;align-items:center;gap:12px;
+      transition:opacity var(--ease),transform var(--ease);
+    }
+    .reader-footer.hidden{opacity:0;transform:translateY(100%);pointer-events:none}
+    .reader-pg{
+      font-size:0.78rem;font-weight:800;color:rgba(255,255,255,.6);flex-shrink:0;
+      min-width:54px;text-align:center;
+    }
+    .reader-track{flex:1;height:3px;background:rgba(255,255,255,.15);border-radius:2px}
+    .reader-track-fill{height:100%;background:var(--rose);border-radius:2px;transition:width .2s}
+    .reader-mode-btn{
+      background:rgba(255,255,255,.1);border:none;color:#fff;
+      font-size:0.65rem;font-weight:800;padding:4px 10px;border-radius:20px;
+      white-space:nowrap;
+    }
+    #reader-pages{
+      flex:1;overflow-y:auto;overflow-x:hidden;scroll-behavior:smooth;
+      scrollbar-width:none;
+    }
+    #reader-pages::-webkit-scrollbar{display:none}
+    #reader-pages img{
+      width:100%;display:block;max-width:800px;margin:0 auto;
+      background:var(--card);
+    }
+    /* horizontal mode */
+    #reader-pages.h-mode{
+      display:flex;overflow-x:auto;overflow-y:hidden;
+      scroll-snap-type:x mandatory;
+    }
+    #reader-pages.h-mode img{
+      flex-shrink:0;width:100vw;height:100%;object-fit:contain;
+      scroll-snap-align:start;
+    }
+
+    /* ── EMPTY / ERROR / LOADING ── */
+    .empty-view{
+      display:flex;flex-direction:column;align-items:center;
+      justify-content:center;padding:60px 20px;text-align:center;gap:12px;
+    }
+    .empty-icon{width:48px;height:48px;opacity:.25}
+    .empty-title{font-size:1rem;font-weight:800;color:var(--text)}
+    .empty-sub{font-size:0.82rem;color:var(--sub);font-weight:600;max-width:240px}
+    .retry-btn{
+      margin-top:8px;padding:8px 20px;background:var(--rose);color:#fff;
+      border:none;border-radius:var(--rs);font-size:0.85rem;font-weight:800;
+    }
+
+    /* ── LANÇAMENTOS LIST ── */
+    .lc-item{
+      display:flex;align-items:center;gap:12px;padding:10px 16px;
+      border-bottom:1px solid var(--border);cursor:pointer;
+      transition:background var(--ease);
+    }
+    .lc-item:hover{background:var(--card)}
+    .lc-cover{width:46px;flex-shrink:0;border-radius:6px;overflow:hidden}
+    .lc-cover img{width:100%;aspect-ratio:2/3;object-fit:cover}
+    .lc-cover .no-img{width:100%;aspect-ratio:2/3;background:var(--faint)}
+    .lc-info{flex:1;min-width:0}
+    .lc-title{font-size:0.82rem;font-weight:800;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .lc-ch{font-size:0.72rem;color:var(--rose);font-weight:700;margin-top:2px}
+    .lc-date{font-size:0.62rem;color:var(--sub);font-weight:700;flex-shrink:0}
+
+    /* ── FAVORITES / LIST ── */
+    .user-grid{
+      display:grid;grid-template-columns:repeat(3,1fr);gap:9px;
+      padding:16px;
+    }
+    @media(min-width:420px){.user-grid{grid-template-columns:repeat(4,1fr)}}
+
+    /* ── PAGE HEADER ── */
+    .page-title{
+      font-size:1.25rem;font-weight:900;padding:20px 16px 6px;
+      display:flex;align-items:center;gap:8px;
+    }
+    .page-title::before{
+      content:'';width:4px;height:22px;border-radius:2px;flex-shrink:0;
+      background:linear-gradient(to bottom,var(--rose),var(--violet));
+    }
+
+    /* ── +18 GATE ── */
+    .gate{
+      display:flex;flex-direction:column;align-items:center;
+      justify-content:center;padding:60px 20px;text-align:center;gap:14px;
+    }
+    .gate-icon{font-size:3rem}
+    .gate-title{font-size:1.1rem;font-weight:900}
+    .gate-sub{font-size:0.82rem;color:var(--sub);font-weight:600;max-width:260px}
+    .gate-btn{
+      padding:12px 28px;background:var(--red);color:#fff;
+      border:none;border-radius:var(--rs);font-size:0.9rem;font-weight:800;margin-top:4px;
+    }
+
+    /* ── LOADING SCREEN ── */
+    .loading-screen{
+      display:flex;flex-direction:column;align-items:center;
+      justify-content:center;height:60vh;gap:16px;
+    }
+    .loading-logo{
+      font-size:2.5rem;font-weight:900;letter-spacing:-2px;
+      background:linear-gradient(125deg,var(--rose) 0%,var(--violet) 100%);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    }
+    .loading-dots{display:flex;gap:6px}
+    .loading-dots span{
+      width:6px;height:6px;border-radius:50%;background:var(--rose);
+      animation:ldot .9s ease-in-out infinite;
+    }
+    .loading-dots span:nth-child(2){animation-delay:.15s;background:var(--violet)}
+    .loading-dots span:nth-child(3){animation-delay:.3s;background:var(--rose)}
+    @keyframes ldot{0%,60%,100%{transform:scale(.6);opacity:.4}30%{transform:scale(1);opacity:1}}
+
+    /* ── BOTTOM NAV ── */
+    .bnav{
+      position:fixed;bottom:0;left:0;right:0;z-index:30;
+      background:rgba(11,11,17,0.95);backdrop-filter:blur(14px);
+      border-top:1px solid var(--border);display:flex;
+      padding:6px 0 calc(6px + env(safe-area-inset-bottom));
+    }
+    .bnav-item{
+      flex:1;display:flex;flex-direction:column;align-items:center;
+      gap:3px;color:var(--sub);font-size:0.58rem;font-weight:800;
+      letter-spacing:0.02em;text-transform:uppercase;
+      transition:color var(--ease);padding:4px 2px;
+      border:none;background:none;
+    }
+    .bnav-item svg{width:21px;height:21px}
+    .bnav-item.active{color:var(--rose)}
+    .bnav-dot{
+      width:3px;height:3px;background:var(--rose);
+      border-radius:50%;display:none;
+    }
+    .bnav-item.active .bnav-dot{display:block}
+
+    @media(prefers-reduced-motion:reduce){
+      *,*::before,*::after{transition:none!important;animation:none!important}
+    }
+  </style>
+</head>
+<body>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay" onclick="sbClose()"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-head">
+    <div>
+      <div class="sb-name">Tory</div>
+      <div class="sb-tagline">Biblioteca privada · PT-BR</div>
+    </div>
+    <button class="sb-close" onclick="sbClose()" aria-label="Fechar">
+      <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <line x1="1" y1="1" x2="13" y2="13"/><line x1="13" y1="1" x2="1" y2="13"/>
+      </svg>
+    </button>
+  </div>
+  <div class="sb-body">
+    <div class="nav-group">
+      <button class="nav-link active" data-route="home">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        Início
+      </button>
+      <button class="nav-link" data-route="lancamentos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Lançamentos
+        <span class="pill pill-rose">Novo</span>
+      </button>
+    </div>
+    <div class="nav-sep"></div>
+    <div class="nav-group">
+      <div class="nav-label">Categorias</div>
+      <button class="nav-link" data-route="manga">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        Manga
+      </button>
+      <button class="nav-link" data-route="manhwa">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Manhwa
+      </button>
+      <button class="nav-link" data-route="coloridos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10z"/></svg>
+        Coloridos
+        <span class="pill pill-gold">Cor</span>
+      </button>
+      <button class="nav-link" data-route="18">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        +18
+        <span class="pill pill-red">18+</span>
+      </button>
+    </div>
+    <div class="nav-sep"></div>
+    <div class="nav-group">
+      <div class="nav-label">Minha Conta</div>
+      <button class="nav-link" data-route="favoritos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        Favoritos
+      </button>
+      <button class="nav-link" data-route="lista">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Minha Lista
+      </button>
+      <button class="nav-link" data-route="historico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Histórico
+      </button>
+    </div>
+  </div>
+</aside>
+
+<!-- SEARCH BAR -->
+<div class="search-bar" id="searchBar">
+  <input class="search-input" type="search" id="searchInput"
+    placeholder="Buscar manga, manhwa..." autocomplete="off" enterkeyhint="search"/>
+  <button class="search-cancel" onclick="srchClose()">Cancelar</button>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <button class="icon-btn" onclick="sbOpen()" aria-label="Menu">
+    <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <line x1="2" y1="5.5" x2="20" y2="5.5"/>
+      <line x1="2" y1="11" x2="20" y2="11"/>
+      <line x1="2" y1="16.5" x2="20" y2="16.5"/>
+    </svg>
+  </button>
+  <span class="h-logo">Tory</span>
+  <button class="icon-btn" onclick="srchOpen()" aria-label="Buscar">
+    <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="9.5" cy="9.5" r="6"/>
+      <line x1="14.5" y1="14.5" x2="19" y2="19"/>
+    </svg>
+  </button>
+</header>
+
+<!-- MAIN (SPA root) -->
+<main id="app">
+  <div class="loading-screen">
+    <div class="loading-logo">Tory</div>
+    <div class="loading-dots"><span></span><span></span><span></span></div>
+  </div>
+</main>
+
+<!-- CHAPTER READER (fullscreen) -->
+<div id="reader" style="display:none">
+  <div class="reader-header" id="readerHeader">
+    <button class="reader-back" onclick="closeReader()" aria-label="Voltar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    </button>
+    <div style="flex:1;min-width:0">
+      <div class="reader-title" id="readerTitle"></div>
+      <div class="reader-ch" id="readerCh"></div>
+    </div>
+    <button class="reader-mode-btn" id="readerModeBtn" onclick="toggleReaderMode()">Vertical</button>
+  </div>
+  <div id="reader-pages"></div>
+  <div class="reader-footer" id="readerFooter">
+    <span class="reader-pg" id="readerPg">1 / ?</span>
+    <div class="reader-track"><div class="reader-track-fill" id="readerTrack" style="width:0%"></div></div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bnav" aria-label="Navegação">
+  <button class="bnav-item active" data-route="home">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+    Início<div class="bnav-dot"></div>
+  </button>
+  <button class="bnav-item" data-route="lancamentos">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+    Novo<div class="bnav-dot"></div>
+  </button>
+  <button class="bnav-item" data-route="favoritos">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    Favoritos<div class="bnav-dot"></div>
+  </button>
+  <button class="bnav-item" data-route="lista">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    Lista<div class="bnav-dot"></div>
+  </button>
+</nav>
+
+<script src="app.js"></script>
+</body>
+</html>
