@@ -660,7 +660,10 @@ window.openChapter = async function(chId, chTitle) {
     const data = await API.pages(chId);
     const { baseUrl, chapter } = data;
     // prefer dataSaver (faster load, enough quality on mobile)
-    const imgList = chapter.dataSaver.map(f => `${baseUrl}/data-saver/${chapter.hash}/${f}`);
+    const imgList = chapter.dataSaver.map((f) => {
+      const src = `${baseUrl}/data-saver/${chapter.hash}/${f}`;
+      return `/api/page?url=${encodeURIComponent(src)}`;
+    });
 
     S.readerPage  = 0;
     S.readerTotal = imgList.length;
